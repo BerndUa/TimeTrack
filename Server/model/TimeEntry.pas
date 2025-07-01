@@ -8,7 +8,7 @@ uses
 type
   [MVCNameCase(ncLowerCase)]
   [Table('time_entries')]
-  TTimeEntry = class(TMVCActiveRecord)
+  TTimeEntry = class(TObject)
   private
     FEntryID: Integer;
     FUserID: Integer;
