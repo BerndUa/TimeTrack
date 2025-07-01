@@ -153,7 +153,7 @@ SELECT
 FROM TIME_ENTRIES te
 JOIN USERS u ON te.USER_ID = u.USER_ID
 JOIN PROJECTS p ON te.PROJECT_ID = p.PROJECT_ID
-WHERE te.IS_RUNNING = 'N';
+WHERE NOT te.End_Time IS null;
 
 -- Rollen und Berechtigungen (optional)
 -- CREATE ROLE TIMETRACK_USER;
