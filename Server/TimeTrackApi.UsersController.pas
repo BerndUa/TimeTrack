@@ -3,7 +3,9 @@ unit TimeTrackApi.UsersController;
 interface
 
 uses
-  MVCFramework, MVCFramework.Commons, MVCFramework.Serializer.Commons, System.Generics.Collections;
+  MVCFramework,
+  MVCFramework.Swagger.Commons,
+  MVCFramework.Commons, MVCFramework.Serializer.Commons, System.Generics.Collections;
 
 type
   [MVCPath('/api')]
