@@ -115,17 +115,26 @@
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
-        <DCCReference Include="TimeTRackApi.AuthController.pas"/>
+        <DCCReference Include="TimeTrackApi.AuthController.pas"/>
         <DCCReference Include="TimeTrackApi.Webmodule.pas">
             <Form>TimetrackModul</Form>
             <FormType>dfm</FormType>
             <DesignClass>TWebModule</DesignClass>
         </DCCReference>
-        <DCCReference Include="TimeTrackApi.DBAccess.pas"/>
-        <DCCReference Include="TimeTRackApi.ProjectsController.pas"/>
-        <DCCReference Include="TimeTRackApi.TrackingController.pas"/>
-        <DCCReference Include="TimeTRackApi.ReportsController.pas"/>
+        <DCCReference Include="TimeTrackApi.ProjectsController.pas"/>
+        <DCCReference Include="TimeTrackApi.TrackingController.pas"/>
+        <DCCReference Include="TimeTrackApi.ReportsController.pas"/>
         <DCCReference Include="TimeTrackApi.UsersController.pas"/>
+        <DCCReference Include="TimeTrackApi.DataModule.pas">
+            <Form>dmDataAccess</Form>
+            <FormType>dfm</FormType>
+            <DesignClass>TDataModule</DesignClass>
+        </DCCReference>
+        <DCCReference Include="TimeTrackApi.PasswordUtils.pas"/>
+        <DCCReference Include="TimeTrackApi.AuthenticationImpl.pas"/>
+        <DCCReference Include="model\TimeTrackApi.Model.Entities.pas"/>
+        <DCCReference Include="TimeTrackApi.ApiTypes.pas"/>
+        <DCCReference Include="TimeTrackApi.BaseController.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

@@ -28,7 +28,8 @@ uses
   System.IOUtils,
   MVCFramework.Commons,
   MVCFramework.Swagger.Commons,
-  MVCFramework.Middleware.ActiveRecord,
+  MVCFramework.JWT,   MVCFramework.Middleware.JWT,
+//  MVCFramework.Middleware.ActiveRecord,
   MVCFramework.Middleware.Swagger,
   MVCFramework.Middleware.Session,
   MVCFramework.Middleware.Redirect,
@@ -37,9 +38,12 @@ uses
   MVCFramework.Middleware.Trace,
   MVCFramework.Middleware.CORS,
   MVCFramework.Middleware.ETag,
-  MVCFramework.Middleware.Compression, TimeTRackApi.ProjectsController,
-  TimeTRackApi.ReportsController, TimeTRackApi.TrackingController,
-  TimeTrackApi.UsersController;
+  MVCFramework.Middleware.Authentication,
+  MVCFramework.Middleware.Compression,
+  TimeTrackApi.ProjectsController,
+  TimeTrackApi.ReportsController,
+  TimeTrackApi.TrackingController,
+  TimeTrackApi.UsersController, TimeTrackApi.AuthenticationImpl;
 
 procedure TTimetrackModul.WebModuleCreate(Sender: TObject);
 var
@@ -76,7 +80,7 @@ begin
   LSwagInfo.Version := 'v1';
   LSwagInfo.TermsOfService := 'http://www.apache.org/licenses/LICENSE-2.0.txt';
   LSwagInfo.Description := 'Swagger Documentation Example';
-  LSwagInfo.ContactName := 'gips nich';
+  LSwagInfo.ContactName := 'kein Kontakt';
   LSwagInfo.ContactEmail := 'nomail@coldmail.com';
   LSwagInfo.ContactUrl := 'auch nich';
   LSwagInfo.LicenseName := 'Apache License - Version 2.0, January 2004';
@@ -89,18 +93,14 @@ begin
   fMVC.AddController(TTrackingController);
   fMVC.AddController(TreportsController);
 
-  fMVC.AddMiddleware(TMVCSwaggerMiddleware.Create(fMVC, LSwagInfo, '/api/swagger.json',
-    'Beispiel Doku',
-    False
-//    ,'api.dmvcframework.com', '/'  { Define a custom host and BasePath when your API uses a dns for external access }
-    ));
+  fMVC.AddMiddleware(TMVCSwaggerMiddleware.Create
+     (fMVC, LSwagInfo, '/api/swagger.json','Beispiel Doku', False));
 
   // Controllers - END
 
   // Middleware
   // To use memory session uncomment the following line
-  // fMVC.AddMiddleware(UseMemorySessionMiddleware);
-  //
+  fMVC.AddMiddleware(UseMemorySessionMiddleware);
   // To use file based session uncomment the following line
   // fMVC.AddMiddleware(UseFileSessionMiddleware);
   //
@@ -108,6 +108,36 @@ begin
   // configure you firedac db connection and create table dmvc_sessions
   // fMVC.AddMiddleware(TMVCActiveRecordMiddleware.Create('firedac_con_def_name'));
   // fMVC.AddMiddleware(UseDatabaseSessionMiddleware);
+   var lConfigClaims: TJWTClaimsSetup := procedure(const JWT: TJWT)
+    begin
+     // Standard Claims
+     JWT.Claims.Issuer := 'TimeTrackAPI';
+     JWT.Claims.Audience := 'TimeTrackClients';
+     JWT.Claims.ExpirationTime := Now + EncodeTime(1, 0, 0, 0); // 1 Stunde
+     JWT.Claims.NotBefore := Now - EncodeTime(0, 5, 0, 0); // 5 Minuten Toleranz
+     JWT.Claims.IssuedAt := Now;
+     JWT.Claims.JWT_ID := TGuid.NewGuid.ToString;
+
+     // Custom Claims werden automatisch aus ASessionData übernommen
+     // Die in TAuthenticationImpl.OnAuthentication gesetzten Werte werden
+     // automatisch als Custom Claims eingebaut
+
+    end;
+
+  // JWT-Middleware mit korrekter Konfiguration
+  fMVC.AddMiddleware(TMVCJWTAuthenticationMiddleware.Create(
+  TAuthenticationImpl.Create,
+  lConfigClaims,
+  'mys3cr37',      // JWT Secret (TODO: aus .env laden)
+  '/auth/login',  // Login-Endpoint - nicht implementiert, macht die JWT Middöeware automatisch
+  [TJWTCheckableClaim.ExpirationTime, TJWTCheckableClaim.NotBefore, TJWTCheckableClaim.IssuedAt],
+  300              // Session Timeout in Sekunden
+));
+
+// NOTIZ: Der vollständige Login-Pfad wird automatisch konstruiert:
+// Controller-Path ("/api/auth") + Login-Action-Path ("/login") = "/api/auth/login"
+
+
   fMVC.AddMiddleware(TMVCStaticFilesMiddleware.Create(
      '/swagger',  { StaticFilesPath }
      '.\www',     { DocumentRoot }

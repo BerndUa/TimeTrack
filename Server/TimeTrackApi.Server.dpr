@@ -16,13 +16,18 @@ uses
   MVCFramework.Serializer.Commons,
   MVCFramework.Container,
   MVCFramework.Signal,
-  TimeTRackApi.AuthController in 'TimeTRackApi.AuthController.pas',
+  TimeTrackApi.AuthController in 'TimeTrackApi.AuthController.pas',
   TimeTrackApi.Webmodule in 'TimeTrackApi.Webmodule.pas' {TimetrackModul: TWebModule},
-  TimeTrackApi.DBAccess in 'TimeTrackApi.DBAccess.pas',
-  TimeTRackApi.ProjectsController in 'TimeTRackApi.ProjectsController.pas',
-  TimeTRackApi.TrackingController in 'TimeTRackApi.TrackingController.pas',
-  TimeTRackApi.ReportsController in 'TimeTRackApi.ReportsController.pas',
-  TimeTrackApi.UsersController in 'TimeTrackApi.UsersController.pas';
+  TimeTrackApi.ProjectsController in 'TimeTrackApi.ProjectsController.pas',
+  TimeTrackApi.TrackingController in 'TimeTrackApi.TrackingController.pas',
+  TimeTrackApi.ReportsController in 'TimeTrackApi.ReportsController.pas',
+  TimeTrackApi.UsersController in 'TimeTrackApi.UsersController.pas',
+  TimeTrackApi.DataModule in 'TimeTrackApi.DataModule.pas' {dmDataAccess: TDataModule},
+  TimeTrackApi.PasswordUtils in 'TimeTrackApi.PasswordUtils.pas',
+  TimeTrackApi.AuthenticationImpl in 'TimeTrackApi.AuthenticationImpl.pas',
+  TimeTrackApi.Model.Entities in 'model\TimeTrackApi.Model.Entities.pas',
+  TimeTrackApi.ApiTypes in 'TimeTrackApi.ApiTypes.pas',
+  TimeTrackApi.BaseController in 'TimeTrackApi.BaseController.pas';
 
 {$R *.res}
 

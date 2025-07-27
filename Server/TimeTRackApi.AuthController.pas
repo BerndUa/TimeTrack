@@ -1,181 +1,141 @@
-unit TimeTRackApi.AuthController;
+unit TimeTrackApi.AuthController;
 
 interface
 
 uses
   MVCFramework, MVCFramework.Commons, MVCFramework.Serializer.Commons,
-  System.Generics.Collections, System.JSON, MVCFramework.Swagger.Commons;
+  System.Generics.Collections, System.JSON, MVCFramework.Swagger.Commons,
+  TimeTrackApi.ApiTypes;
 
-type
-  TLoginUser = class
-  private
-    FUsername: string;
-    FUser_ID: integer;
-    Fis_confirmed: Boolean;
-    Femail: string;
-    Fis_active: Boolean;
-    Fcreated_at: TDateTime;
-    Ffirst_name: string;
-    Fconfirmation_token: string;
-    Flast_login: TDateTime;
-    Fpassword: string;
-    Faddress: string;
-    Flast_name: string;
-    procedure SetUser_ID(const Value: integer);
-    procedure SetUsername(const Value: string);
-    procedure Setaddress(const Value: string);
-    procedure Setconfirmation_token(const Value: string);
-    procedure Setcreated_at(const Value: TDateTime);
-    procedure Setemail(const Value: string);
-    procedure Setfirst_name(const Value: string);
-    procedure Setis_active(const Value: Boolean);
-    procedure Setis_confirmed(const Value: Boolean);
-    procedure Setlast_login(const Value: TDateTime);
-    procedure Setlast_name(const Value: string);
-    procedure Setpassword(const Value: string);
-  public
-    property User_ID: integer read FUser_ID write SetUser_ID;
-    property Username: string read FUsername write SetUsername;
-    property email: string read Femail write Setemail;
-    property password: string read Fpassword write Setpassword;
-    property first_name: string read Ffirst_name write Setfirst_name;
-    property last_name: string read Flast_name write Setlast_name;
-    property address: string read Faddress write Setaddress;
-    property is_confirmed: Boolean read Fis_confirmed write Setis_confirmed;
-    property confirmation_token: string read Fconfirmation_token write Setconfirmation_token;
-    property created_at: TDateTime read Fcreated_at write Setcreated_at;
-    property last_login: TDateTime read Flast_login write Setlast_login;
-    property is_active: Boolean read Fis_active write Setis_active;
-
-  end;
 
 type
   [MVCPath('/api/auth')]
   TAuthController = class(TMVCController)
+  private
+    function GetActivationUrl(const username, activationcode: string): string;
   public
-//    [MVCDoc('Registers a new user')]
     [MVCPath('/register')]
     [MVCSwagSummary('Authentication', 'registers a new user')]
     [MVCSwagResponses(201,'user registered')]
     [MVCSwagResponses(500,'Internal Server Error')]
+    [MVCSwagResponses(400, 'Invalid request')]
     [MVCSwagResponses(409, 'user already exists')]
-    [MVCSwagParam(plbody,'body', 'Kundendaten', ptstring)]
+    [MVCSwagParam(plbody, 'Benutzerdaten', 'Daten des neuen Nutzers', TimeTrackApi.ApiTypes.TNewUserData)]
     [MVCConsumes(TMVCMediaType.APPLICATION_JSON)]
     [MVCProduces(TMVCMediaType.APPLICATION_JSON)]
     [MVCHTTPMethod([httpPOST])]
-    function RegisterUser: string;
+    procedure RegisterUser;
 
-
-    [MVCPath('/activate')]
+    [MVCPath('/activate/($UserName)/($ActivationCode)')]
     [MVCSwagSummary('Authentication', 'activates a new user')]
+    [MVCSwagParam(plPath, 'UserName', 'Benutzername', ptString, true)]
+    [MVCSwagParam(plPath, 'ActivationCode', 'Aktivierungscode', ptString, true)]
     [MVCSwagResponses(202,'user activated')]
     [MVCSwagResponses(500,'Internal Server Error')]
     [MVCSwagResponses(400, 'Unknown Authentication Token')]
-    [MVCConsumes(TMVCMediaType.APPLICATION_JSON)]
-    [MVCProduces(TMVCMediaType.APPLICATION_JSON)]
+    [MVCProduces(TMVCMediaType.TEXT_PLAIN)]
     [MVCHTTPMethod([httpPOST])]
-    function ActivateUser: string;
+    function ActivateUser(UserName:string; ActivationCode: string): string;
 
-    [MVCPath('/login')]
-    [MVCSwagSummary('Authentication', 'logs user in')]
-    [MVCSwagResponses(200,'login successful')]
-    [MVCSwagResponses(500,'Internal Server Error')]
-    [MVCSwagResponses(400, 'Unknown Authentication Token')]
-    [MVCConsumes(TMVCMediaType.APPLICATION_JSON)]
-    [MVCProduces(TMVCMediaType.APPLICATION_JSON)]
-    [MVCHTTPMethod([httpPOST])]
-    function LoginUser: string;
-
+    // Die DMVC JWT-Middleware übernimmt automatisch:
+    // 1. Parsen jwtusername/jwtpassword aus dem Header
+    // 2. Aufruf von TAuthenticationImpl.OnAuthentication
+    // 3. Token-Generierung bei erfolgreichem Login
+    // 4. Rückgabe des Tokens im Authorization Header
+    // Kein eigener endpunkt nötig
+    // Wenn die URL api/auth/login aufgerufen wird, übernimmt die JWT-Middleware
+    // Erfolgreiche Antwort (Token wird automatisch im Header gesetzt)
+    //function LoginUser: string;
   end;
 
 implementation
 
 uses
-  System.StrUtils, System.SysUtils, MVCFramework.Logger;
+  Windows, MVCFramework.JWT,
+  System.StrUtils, System.SysUtils, MVCFramework.Logger, TimeTrackApi.DBAccess,
+  TimeTrackApi.DataModule, TimeTrackApi.Model.Entities;
 
-
-function TAuthController.ActivateUser: string;
+//(UserName:string; ActivationCode: string)
+function TAuthController.ActivateUser(UserName:string; ActivationCode: string): string;
 begin
- //
+//  var username :string := Context.Request.Params['UserName'];
+//  var ActivationCode: string := Context.Request.Params['ActivationCode'];
+  TdmDataAccess.DbActivateUser(Username,ActivationCode);
+  Context.Response.StatusCode := 202;
+  Context.Response.ReasonString := 'user activated';
+  Result := 'Danke fuer die Aktivierung';
 end;
 
-function TAuthController.LoginUser: string;
+
+function TAuthController.GetActivationUrl(const username, activationcode: string): string;
+var
+  baseUrl, pathInfo, hostInfo: string;
+  serverPort : integer;
 begin
-//
+  serverport := dotEnv.Env('dmvc.server.port',8080);
+  hostInfo := dotEnv.Env('AppHost');
+  pathInfo := Context.Request.PathInfo;
+  // letzte Aktion abschneiden
+  Delete(pathInfo,pathInfo.LastIndexOf('/')+1,Length(PathInfo));
+  baseUrl := Format('%s:%d%s/activate/', [hostInfo,serverport,pathinfo]);
+  Result := baseUrl + URLEncode(username)+'/'+UrlEncode(ActivationCode);
 end;
 
-function TAuthController.RegisterUser: string;
-var lJSON: TJSONObject;
+
+
+procedure TAuthController.RegisterUser;
+var
+  response: TJSONObject;
+  newUser: TNewUserData;
+  activationcode : string;
 begin
-  lJSON:= TJSONValue.ParseJSONValue(Context.Request.Body) As TJSONObject;
+  // möglich : manuell parsen
+  // var lJSOn : TJSONObject := TJSONObject.ParseJSONValue(Context.Request.Body) As TJSONObject;
+  // if lJSON=nil  then
+  // begin
+  //  Context.Response.StatusCode := 400;
+  //   Context.Response.ReasonString := 'kein gueltiges JSON';
+
+  // schneller -> direkt parsen: wenn keine Daten/falscher Inhalt Felder leer
   try
-    Result:= 'hat funktioniert'
-    //lJSON
-  finally
-    FreeAndNil(lJson);
+    newUser := Context.Request.BodyAs<TNewUserData>;
+    try
+      if not NewUser.IsDataValid then
+      begin
+        { TODO 5 -oALL -coptimizations : Alternative : detailierte Fehler liefern zu required fields etc }
+        Context.Response.StatusCode := 400;
+        Context.Response.ReasonString := 'Username, Password oder Email fehlen';
+      end
+      else
+        begin
+          // mit dem internen record weiterarbeiten
+          var userData := newUser.GetAsUserData;
+          activationcode := TdmDataAccess.DbInsertUser(newUser.GetAsUserData);
+          // url erzeugen für die Aktivierung
+          var activationUrl : string := GetActivationUrl(newUser.Username, activationcode);
+
+          // zum Testen ist die Url im Response günstiger als einen Aktvierungsmail
+          response := TJSONObject.Create;
+          response.AddPair('activationlink', activationUrl);
+          { TODO -oALL -cOptimization : optional hier zusätzlich Aktivierungsmail erzeugen}
+          Context.Response.Content := response.ToJSON;
+          Context.Response.StatusCode := 201;
+        end;
+    finally
+      FreeAndNil(newUser);
+    end;
+  except
+    On E: Exception do
+    begin
+      { TODO 5 -oALL -coptimizations : logging und Details NUR im Dev-Modus, detaillierte Fehler sind Angriffsvektoren }
+      {$IFDEF DEBUG}
+        raise;
+      {$ELSE}
+      Context.Response.Content := 'Interner Serverfehler';
+      Context.Response.StatusCode := 500;
+      {$ENDIF}
+    end;
   end;
-end;
-
-{ TLoginUser }
-
-procedure TLoginUser.Setaddress(const Value: string);
-begin
-  Faddress := Value;
-end;
-
-procedure TLoginUser.Setconfirmation_token(const Value: string);
-begin
-  Fconfirmation_token := Value;
-end;
-
-procedure TLoginUser.Setcreated_at(const Value: TDateTime);
-begin
-  Fcreated_at := Value;
-end;
-
-procedure TLoginUser.Setemail(const Value: string);
-begin
-  Femail := Value;
-end;
-
-procedure TLoginUser.Setfirst_name(const Value: string);
-begin
-  Ffirst_name := Value;
-end;
-
-procedure TLoginUser.Setis_active(const Value: Boolean);
-begin
-  Fis_active := Value;
-end;
-
-procedure TLoginUser.Setis_confirmed(const Value: Boolean);
-begin
-  Fis_confirmed := Value;
-end;
-
-procedure TLoginUser.Setlast_login(const Value: TDateTime);
-begin
-  Flast_login := Value;
-end;
-
-procedure TLoginUser.Setlast_name(const Value: string);
-begin
-  Flast_name := Value;
-end;
-
-procedure TLoginUser.Setpassword(const Value: string);
-begin
-  Fpassword := Value;
-end;
-
-procedure TLoginUser.SetUsername(const Value: string);
-begin
-  FUsername := Value;
-end;
-
-procedure TLoginUser.SetUser_ID(const Value: integer);
-begin
-  FUser_ID := Value;
 end;
 
 end.
